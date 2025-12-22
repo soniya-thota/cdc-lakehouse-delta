@@ -1,1 +1,17 @@
-
+{
+"name": "mysql-orders",
+"config": {
+"connector.class": "io.debezium.connector.mysql.MySqlConnector",
+"database.hostname": "mysql",
+"database.port": "3306",
+"database.user": "root",
+"database.password": "example",
+"database.server.id": "184054",
+"topic.prefix": "dbserver1",
+"database.include.list": "inventory",
+"table.include.list": "inventory.orders",
+"include.schema.changes": false,
+"snapshot.mode": "initial",
+"tombstones.on.delete": false
+}
+}
