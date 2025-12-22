@@ -1,1 +1,66 @@
+version: "3.9"
+ports: ["9092:9092"]
+environment:
+KAFKA_BROKER_ID: 1
+KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
 
+
+mysql:
+image: mysql:8
+environment:
+MYSQL_ROOT_PASSWORD: example
+MYSQL_USER: app
+MYSQL_PASSWORD: app
+MYSQL_DATABASE: inventory
+ports: ["3306:3306"]
+command: ["mysqld", "--server-id=223344", "--binlog_format=ROW", "--log-bin=mysql-bin", "--binlog_row_image=FULL"]
+volumes:
+- ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+
+connect:
+image: debezium/connect:2.6
+depends_on: [kafka, mysql]
+ports: ["8083:8083"]
+environment:
+BOOTSTRAP_SERVERS: kafka:9092
+GROUP_ID: 1
+CONFIG_STORAGE_TOPIC: connect_configs
+OFFSET_STORAGE_TOPIC: connect_offsets
+STATUS_STORAGE_TOPIC: connect_statuses
+KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+REST_ADVERTISED_HOST_NAME: connect
+REST_PORT: 8083
+
+
+spark:
+image: bitnami/spark:3.5.0
+depends_on: [kafka]
+user: root
+environment:
+SPARK_MODE: standalone
+SPARK_MASTER_URL: spark://spark:7077
+SPARK_WORKER_MEMORY: 2G
+ports: ["4040:4040", "7077:7077"]
+volumes:
+- ./spark:/app
+- ./data:/data
+command: ["/bin/bash", "-lc", "sleep infinity"]
+
+
+api:
+image: python:3.10-slim
+depends_on: [spark]
+working_dir: /app
+volumes:
+- ./api:/app
+- ./data:/data
+ports: ["8000:8000"]
+command: ["bash", "-lc", "pip install fastapi uvicorn deltalake && uvicorn app:app --host 0.0.0.0 --port 8000"]
