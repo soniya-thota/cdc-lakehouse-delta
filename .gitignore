@@ -1,0 +1,7 @@
+@'
+data/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+'@ | Set-Content -Encoding UTF8 .gitignore
